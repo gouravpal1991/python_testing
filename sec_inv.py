@@ -25,9 +25,9 @@ def process_df(df):
     valid_mask = pd.Series(True, index=df.index)
 
     def add_error(df, mask, error_message):
-        error_df = df[mask].copy()
-        error_df['Error Message'] = error_message
-        return error_df
+        error_part = df[mask].copy()
+        error_part['Error Message'] = error_message
+        return error_part
     
     # Check for empty WA Security ID/Config
     empty_security_id_mask = df['WA Security ID/Config'].isna()
@@ -50,25 +50,31 @@ def process_df(df):
     config_df = df[config_mask]
 
     # Check for unclassified NBIN
-    unclassified_nbin_mask = config_df[['NBIN Type ID', 'NBIN Class ID']].isnull().any(axis=1) & ~config_df[['NBIN Type ID', 'NBIN Class ID']].isnull().all(axis=1)
+    unclassified_nbin_mask = config_df['NBIN Type ID'].isna() ^ config_df['NBIN Class ID'].isna()
     error_df = pd.concat([error_df, add_error(config_df, unclassified_nbin_mask, 'Unclassified NBIN security type')])
-    valid_mask &= ~unclassified_nbin_mask.reindex(df.index, fill_value=False)
+    valid_mask &= ~pd.Series(unclassified_nbin_mask, index=config_df.index).reindex(df.index, fill_value=False)
 
     # Check for unclassified MS CIFSC Category
     ms_category_columns = ['MS CIFSC Category', 'MS Category Type', 'MS Market Cap', 'MS Fund Region Focus', 'MS Fund Asset Class Focus']
-    unclassified_ms_mask = config_df[ms_category_columns].isnull().any(axis=1) & ~config_df[ms_category_columns].isnull().all(axis=1)
+    ms_any_null_mask = config_df[ms_category_columns].isnull().any(axis=1)
+    ms_all_null_mask = config_df[ms_category_columns].isnull().all(axis=1)
+    unclassified_ms_mask = ms_any_null_mask & ~ms_all_null_mask
     error_df = pd.concat([error_df, add_error(config_df, unclassified_ms_mask, 'Unclassified MS CIFSC Category Exceptions')])
-    valid_mask &= ~unclassified_ms_mask.reindex(df.index, fill_value=False)
+    valid_mask &= ~pd.Series(unclassified_ms_mask, index=config_df.index).reindex(df.index, fill_value=False)
 
     # Check for duplicate NBIN Type ID and NBIN Class ID
-    duplicate_nbin_mask = config_df.duplicated(subset=['NBIN Type ID', 'NBIN Class ID'], keep=False)
+    nbin_group = config_df.groupby(['NBIN Type ID', 'NBIN Class ID']).size()
+    duplicate_nbin_keys = nbin_group[nbin_group > 1].index
+    duplicate_nbin_mask = config_df.set_index(['NBIN Type ID', 'NBIN Class ID']).index.isin(duplicate_nbin_keys)
     error_df = pd.concat([error_df, add_error(config_df, duplicate_nbin_mask, 'Duplicate NBIN Type ID and NBIN Class ID combination')])
-    valid_mask &= ~duplicate_nbin_mask.reindex(df.index, fill_value=False)
+    valid_mask &= ~pd.Series(duplicate_nbin_mask, index=config_df.index).reindex(df.index, fill_value=False)
 
     # Check for duplicate MS CIFSC Category combination
-    duplicate_ms_combination_mask = config_df.duplicated(subset=ms_category_columns, keep=False)
+    ms_group = config_df.groupby(ms_category_columns).size()
+    duplicate_ms_keys = ms_group[ms_group > 1].index
+    duplicate_ms_combination_mask = config_df.set_index(ms_category_columns).index.isin(duplicate_ms_keys)
     error_df = pd.concat([error_df, add_error(config_df, duplicate_ms_combination_mask, 'Duplicate MS CIFSC Category, MS Category Type, MS Market Cap, MS Fund Region Focus, MS Fund Asset Class Focus combination')])
-    valid_mask &= ~duplicate_ms_combination_mask.reindex(df.index, fill_value=False)
+    valid_mask &= ~pd.Series(duplicate_ms_combination_mask, index=config_df.index).reindex(df.index, fill_value=False)
 
     # Create valid_df using the valid_mask
     valid_df = df[valid_mask].reset_index(drop=True)
