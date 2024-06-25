@@ -3,19 +3,19 @@ import pandas as pd
 # Create a stub DataFrame for testing
 def create_stub_df():
     data = {
-        'WA Security ID/Config': ['config', 'config', None, 'config', 'config', 'config', 'config', '123', '124'],
-        'NBIN Type ID': [1, 1, 1, 1, 2, 2, None, 1, 1],
-        'NBIN Class ID': [10, 10, 20, None, 20, 21, 21, 10, 20],
-        'NBIN Type Name': ['Type1', 'Type1', 'Type2', 'Type1', 'Type2', 'Type3', 'Type3', 'Type1', 'Type2'],
-        'NBIN Class Name': ['Class1', 'Class1', 'Class2', 'Class1', 'Class2', 'Class3', 'Class3', 'Class1', 'Class2'],
-        'Final WA Base Style': ['Style1', 'Style1', 'Style2', 'Style1', 'Style2', 'Style3', 'Style3', 'Style1', 'Style2'],
-        'Action': ['Update', 'Expire', 'Update', 'Update', 'Update', 'Expire', 'Update', 'Update', 'Create'],
-        'MS CIFSC Category': ['Category1', 'Category1', 'Category2', 'Category1', 'Category2', 'Category3', None, 'Category1', 'Category2'],
-        'MS Category Type': ['TypeA', 'TypeA', 'TypeB', 'TypeA', 'TypeB', 'TypeC', None, 'TypeA', 'TypeB'],
-        'MS Market Cap': ['Large', 'Large', 'Mid', 'Large', 'Mid', 'Small', None, 'Large', 'Mid'],
-        'MS Fund Region Focus': ['Region1', 'Region1', 'Region2', 'Region1', 'Region2', 'Region3', None, 'Region1', 'Region2'],
-        'MS Fund Asset Class Focus': ['Equity', 'Equity', 'Bond', 'Equity', 'Bond', 'RealEstate', None, 'Equity', 'Bond'],
-        'Final WA Base Style': ['Style1', 'Style1', 'Style2', 'Style1', 'Style2', 'Style3', 'Style3', 'Style1', 'Style2']
+        'WA Security ID/Config': ['config', 'config', None, 'config', 'config', 'config', 'config', '123', '124', '123'],
+        'NBIN Type ID': [1, 1, 1, 1, 2, 2, None, 1, 1, 1],
+        'NBIN Class ID': [10, 10, 20, None, 20, 21, 21, 10, 20, 10],
+        'NBIN Type Name': ['Type1', 'Type1', 'Type2', 'Type1', 'Type2', 'Type3', 'Type3', 'Type1', 'Type2', 'Type1'],
+        'NBIN Class Name': ['Class1', 'Class1', 'Class2', 'Class1', 'Class2', 'Class3', 'Class3', 'Class1', 'Class2', 'Class1'],
+        'Final WA Base Style': ['Style1', 'Style1', 'Style2', 'Style1', 'Style2', 'Style3', 'Style3', 'Style1', 'Style2', 'Style1'],
+        'Action': ['Update', 'Expire', 'Update', 'Update', 'Update', 'Expire', 'Update', 'Update', 'Create', 'Update'],
+        'MS CIFSC Category': ['Category1', 'Category1', 'Category2', 'Category1', 'Category2', 'Category3', None, 'Category1', 'Category2', 'Category1'],
+        'MS Category Type': ['TypeA', 'TypeA', 'TypeB', 'TypeA', 'TypeB', 'TypeC', None, 'TypeA', 'TypeB', 'TypeA'],
+        'MS Market Cap': ['Large', 'Large', 'Mid', 'Large', 'Mid', 'Small', None, 'Large', 'Mid', 'Large'],
+        'MS Fund Region Focus': ['Region1', 'Region1', 'Region2', 'Region1', 'Region2', 'Region3', None, 'Region1', 'Region2', 'Region1'],
+        'MS Fund Asset Class Focus': ['Equity', 'Equity', 'Bond', 'Equity', 'Bond', 'RealEstate', None, 'Equity', 'Bond', 'Equity'],
+        'Final WA Base Style': ['Style1', 'Style1', 'Style2', 'Style1', 'Style2', 'Style3', 'Style3', 'Style1', 'Style2', 'Style1']
     }
     return pd.DataFrame(data)
 
@@ -35,18 +35,18 @@ def process_df(df):
         valid_df = valid_df.drop(empty_security_id_df.index)
 
     # Check for Action values other than 'Update' or 'Expire'
-    invalid_action_df = df[~df['Action'].isin(['Update', 'Expire'])].copy()
+    invalid_action_df = valid_df[~valid_df['Action'].isin(['Update', 'Expire'])].copy()
     if not invalid_action_df.empty:
         invalid_action_df['Error Message'] = 'Entry with action value other than Update or Expire'
         error_df = pd.concat([error_df, invalid_action_df], ignore_index=True)
         valid_df = valid_df.drop(invalid_action_df.index)
 
-    # Check for duplicate WA Security ID/Config
-    duplicate_security_id_df = df[df.duplicated(subset=['WA Security ID/Config'], keep=False)].copy()
-    if not duplicate_security_id_df.empty:
-        duplicate_security_id_df['Error Message'] = 'No duplicate security key'
-        error_df = pd.concat([error_df, duplicate_security_id_df], ignore_index=True)
-        valid_df = valid_df.drop(duplicate_security_id_df.index)
+    # Check for duplicate WA Security ID/Config where the value is not 'config'
+    duplicate_security_id_non_config_df = valid_df[(valid_df['WA Security ID/Config'] != 'config') & valid_df.duplicated(subset=['WA Security ID/Config'], keep=False)].copy()
+    if not duplicate_security_id_non_config_df.empty:
+        duplicate_security_id_non_config_df['Error Message'] = 'No duplicate security key'
+        error_df = pd.concat([error_df, duplicate_security_id_non_config_df], ignore_index=True)
+        valid_df = valid_df.drop(duplicate_security_id_non_config_df.index)
 
     # Process rows where WA Security ID/Config value is 'config'
     config_df = valid_df[valid_df['WA Security ID/Config'] == 'config'].copy()
@@ -89,7 +89,7 @@ def process_df(df):
     # Remove duplicates to keep unique errors
     error_df = error_df.drop_duplicates().reset_index(drop=True)
 
-    return valid_df.reset_index(drop=True), error_df
+    return valid_df.reset_index(drop=True), error_df.reset_index(drop=True)
 
 # Create stub DataFrame
 stub_df = create_stub_df()
