@@ -31,21 +31,21 @@ def process_df(df):
     empty_security_id_df = df[df['WA Security ID/Config'].isna()].copy()
     if not empty_security_id_df.empty:
         empty_security_id_df['Error Message'] = 'Entry without a WS Security Id'
-        error_df = pd.concat([error_df, empty_security_id_df])
+        error_df = pd.concat([error_df, empty_security_id_df], ignore_index=True)
         valid_df = valid_df.drop(empty_security_id_df.index)
 
     # Check for Action values other than 'Update' or 'Expire'
     invalid_action_df = df[~df['Action'].isin(['Update', 'Expire'])].copy()
     if not invalid_action_df.empty:
         invalid_action_df['Error Message'] = 'Entry with action value other than Update or Expire'
-        error_df = pd.concat([error_df, invalid_action_df])
+        error_df = pd.concat([error_df, invalid_action_df], ignore_index=True)
         valid_df = valid_df.drop(invalid_action_df.index)
 
     # Check for duplicate WA Security ID/Config
     duplicate_security_id_df = df[df.duplicated(subset=['WA Security ID/Config'], keep=False)].copy()
     if not duplicate_security_id_df.empty:
         duplicate_security_id_df['Error Message'] = 'No duplicate security key'
-        error_df = pd.concat([error_df, duplicate_security_id_df])
+        error_df = pd.concat([error_df, duplicate_security_id_df], ignore_index=True)
         valid_df = valid_df.drop(duplicate_security_id_df.index)
 
     # Process rows where WA Security ID/Config value is 'config'
@@ -57,7 +57,7 @@ def process_df(df):
     ].copy()
     if not unclassified_nbin_df.empty:
         unclassified_nbin_df['Error Message'] = 'Unclassified NBIN security type'
-        error_df = pd.concat([error_df, unclassified_nbin_df])
+        error_df = pd.concat([error_df, unclassified_nbin_df], ignore_index=True)
         valid_df = valid_df.drop(unclassified_nbin_df.index)
 
     # Check for MS CIFSC Category, MS Category Type, MS Market Cap, MS Fund Region Focus, MS Fund Asset Class Focus combination
@@ -67,14 +67,14 @@ def process_df(df):
     ].copy()
     if not unclassified_ms_df.empty:
         unclassified_ms_df['Error Message'] = 'Unclassified MS CIFSC Category Exceptions'
-        error_df = pd.concat([error_df, unclassified_ms_df])
+        error_df = pd.concat([error_df, unclassified_ms_df], ignore_index=True)
         valid_df = valid_df.drop(unclassified_ms_df.index)
 
     # Check for duplicate combination of NBIN Type ID and NBIN Class ID
     duplicate_nbin_df = config_df[config_df.duplicated(subset=['NBIN Type ID', 'NBIN Class ID'], keep=False)].copy()
     if not duplicate_nbin_df.empty:
         duplicate_nbin_df['Error Message'] = 'Duplicate NBIN Type ID and NBIN Class ID combination'
-        error_df = pd.concat([error_df, duplicate_nbin_df])
+        error_df = pd.concat([error_df, duplicate_nbin_df], ignore_index=True)
         valid_df = valid_df.drop(duplicate_nbin_df.index)
 
     # Check for duplicate combination of MS CIFSC Category, MS Category Type, MS Market Cap, MS Fund Region Focus, MS Fund Asset Class Focus
@@ -83,13 +83,13 @@ def process_df(df):
     ].copy()
     if not duplicate_ms_combination_df.empty:
         duplicate_ms_combination_df['Error Message'] = 'Duplicate MS CIFSC Category, MS Category Type, MS Market Cap, MS Fund Region Focus, MS Fund Asset Class Focus combination'
-        error_df = pd.concat([error_df, duplicate_ms_combination_df])
+        error_df = pd.concat([error_df, duplicate_ms_combination_df], ignore_index=True)
         valid_df = valid_df.drop(duplicate_ms_combination_df.index)
 
     # Remove duplicates to keep unique errors
-    error_df = error_df.drop_duplicates()
+    error_df = error_df.drop_duplicates().reset_index(drop=True)
 
-    return valid_df, error_df
+    return valid_df.reset_index(drop=True), error_df
 
 # Create stub DataFrame
 stub_df = create_stub_df()
